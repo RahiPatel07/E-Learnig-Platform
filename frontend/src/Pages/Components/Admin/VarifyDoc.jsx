@@ -39,8 +39,8 @@ function VarifyDoc() {
             try {
                 const token = localStorage.getItem("Accesstoken"); // Assuming it's stored here
                 console.log("1");
-                console.log("token",token);
-
+                console.log("token", token);
+    
                 const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/admin/${adminID}/documents/student/${ID}`, {
                     method: "GET",
                     headers: {
@@ -49,23 +49,28 @@ function VarifyDoc() {
                     },
                     credentials: "include",
                 });
-                console.log("r",response);
-        
+                console.log("r", response);
+    
                 if (!response.ok) {
                     const errorResponse = await response.json();
                     console.error("API Error Response:", errorResponse);
                     throw new Error(`HTTP error! Status: ${response.status} - ${errorResponse.message}`);
                 }
-        
+    
                 const data = await response.json();
                 console.log("Response:", data);
+    
+                // Update the state with the fetched data
+                setData(data.data);  // Assuming the response has a `data` field that contains the actual data
+    
             } catch (error) {
                 console.error("Error fetching data:", error.message);
             }
         };
-              
+    
         getData();
-    }, []);
+    }, [adminID, ID]);
+    
     
     return (
         <>
