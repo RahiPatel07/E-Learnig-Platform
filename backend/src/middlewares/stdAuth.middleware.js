@@ -1,13 +1,13 @@
-import {asyncHandler} from "../utils/asyncHandler.js";
-import {ApiError} from "../utils/ApiError.js";
-import {student} from "../models/student.model.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiError } from "../utils/ApiError.js";
+import { student } from "../models/student.model.js";
 import jwt from "jsonwebtoken";
 
-const authSTD = asyncHandler(async (req, _, next) => {
+const authSTD = asyncHandler(async (req, res, next) => {
     try {
         // Get token from cookies
         const accToken = req.cookies?.Accesstoken;
-        console.log("🔍 Access Token:", accToken ? "Present" : "Missing");
+        console.log("🔍 Access Token:", accToken || "❌ Missing");
         console.log("🔍 Request Headers:", req.headers);
         console.log("🔍 Request Cookies:", req.cookies);
 
@@ -21,15 +21,15 @@ const authSTD = asyncHandler(async (req, _, next) => {
             console.log("✅ Token Verified Successfully");
             console.log("✅ Verified Token Payload:", verifiedToken);
 
-            // Check if token has required fields
-            if (!verifiedToken._id || !verifiedToken.Email) {
+            // Validate token payload structure
+            if (!verifiedToken._id) {
                 console.error("❌ Invalid token payload structure:", verifiedToken);
                 throw new ApiError(401, "Invalid token payload");
             }
 
             // Find student
             const Student = await student.findById(verifiedToken._id).select("-Password -Refreshtoken");
-            console.log("👤 Student Found:", Student ? "Yes" : "No");
+            console.log("👤 Student Found:", Student ? "✅ Yes" : "❌ No");
             console.log("👤 Student ID:", Student?._id);
 
             if (!Student) {
@@ -42,7 +42,7 @@ const authSTD = asyncHandler(async (req, _, next) => {
             }
 
             // Attach student to request
-            req.Student = Student;
+            req.user = Student; // ✅ Fix: Use req.user instead of req.Student
             next();
         } catch (jwtError) {
             console.error("❌ JWT Verification Error:", jwtError.message);
@@ -63,4 +63,4 @@ const authSTD = asyncHandler(async (req, _, next) => {
     }
 });
 
-export { authSTD }
+export { authSTD };

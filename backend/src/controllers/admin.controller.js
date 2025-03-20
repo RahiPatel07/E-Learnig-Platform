@@ -55,43 +55,49 @@ const generateAccessAndRefreshTokens = async (admindID) =>{
     }
 }
 
-const adminLogin = asyncHandler(async(req,res)=>{
+const adminLogin = asyncHandler(async (req, res) => {
+    const { username, password } = req.body;
 
-    const {username, password} = req.body
-
-    if([username, password].some((field) => field?.trim() === "")) {
+    if ([username, password].some((field) => field?.trim() === "")) {
         throw new ApiError(400, "All fields are required");
     }
 
-    const loggedAdmin = await admin.findOne({username})
+    const loggedAdmin = await admin.findOne({ username });
 
-    if(!loggedAdmin){
-        throw new ApiError(400, "admin does not exist")
+    if (!loggedAdmin) {
+        throw new ApiError(400, "Admin does not exist");
     }
 
-    const passwordCheck = await loggedAdmin.isPasswordCorrect(password)
+    const passwordCheck = await loggedAdmin.isPasswordCorrect(password);
 
-    if(!passwordCheck){
-        throw new ApiError(400, "Password is incorrect")
+    if (!passwordCheck) {
+        throw new ApiError(400, "Password is incorrect");
     }
 
-    const temp_admin = loggedAdmin._id
+    const temp_admin = loggedAdmin._id;
 
-    const {Accesstoken, Refreshtoken} =  await generateAccessAndRefreshTokens(temp_admin)
+    const { Accesstoken, Refreshtoken } = await generateAccessAndRefreshTokens(temp_admin);
 
-    const loggedadmin = await admin.findById(temp_admin).select("-password -Refreshtoken")
+    console.log("✅ Generated Access Token:", Accesstoken);
+    console.log("✅ Generated Refresh Token:", Refreshtoken);
+
+    const loggedadmin = await admin.findById(temp_admin).select("-password -Refreshtoken");
 
     const options = {
-        httpOnly:true,
-        secure:true,
-    }
+        httpOnly: true,
+        secure: true,
+    };
 
-    return res 
-    .status(200)
-    .cookie("Accesstoken", Accesstoken, options)
-    .cookie("Refreshtoken", Refreshtoken, options)
-    .json(new ApiResponse(200,{admin:loggedadmin}, "logged in successfully"))
-})
+    return res
+        .status(200)
+        .cookie("Accesstoken", Accesstoken, options)
+        .cookie("Refreshtoken", Refreshtoken, options)
+        .json(new ApiResponse(200, { 
+            admin: loggedadmin, 
+            Accesstoken // ✅ Include token in response
+        }, "Logged in successfully"));
+});
+
 
 const adminLogout = asyncHandler(async(req,res)=>{
 
@@ -153,52 +159,40 @@ const forApproval = asyncHandler(async(req,res)=>{
     , teachersforApproval}, "fetched successfully"))
 })
 
-const approveStudent = asyncHandler(async(req,res)=>{
-
-    const adminID = req.params.adminID
-
-    if(!adminID){
-        throw new ApiError(400, "not authorized")
+const approveStudent = asyncHandler(async (req, res) => {
+    console.log("Received Request Body:", req.body);
+  
+    const { adminID, studentID } = req.params;
+    const { Isapproved, email, remarks } = req.body;
+  
+    if (!adminID) throw new ApiError(400, "Not authorized");
+    if (!studentID) throw new ApiError(400, "Student ID is required");
+    if (!Isapproved || !["approved", "rejected", "reupload"].includes(Isapproved)) {
+      throw new ApiError(400, "Invalid approval status");
     }
-
-    const loggedAdmin = await admin.findById(adminID)
-
-    if(!loggedAdmin){
-        throw new ApiError(400, "admin not found")
+  
+    console.log(`Approving Student: ${studentID} with Status: ${Isapproved}`);
+  
+    // ✅ Use `findByIdAndUpdate` with `{ new: true, runValidators: true }`
+    const updatedStudent = await student.findByIdAndUpdate(
+      studentID,
+      { $set: { Isapproved, Remarks: remarks } }, 
+      { new: true, runValidators: true } // ✅ Ensures updated value is returned
+    );
+  
+    if (!updatedStudent) {
+      throw new ApiError(400, "Failed to update student status");
     }
-
-
-    const studentID = req.params.studentID
-
-
-    if(!studentID){
-        throw new ApiError(400, "student id is required")
-    }
-
-    const toApprove = req.body.Isapproved
-
-    const email = req.body.email
-
-    const remarks = req.body.remarks || null
-
-    if (!toApprove || (toApprove != "approved" && toApprove != "rejected" && toApprove !== "reupload")) {
-        throw new ApiError(400, "Please choose 'approve' or 'reject' or 'reupload'");
-    }
-
-    const theStudent = await student.findOneAndUpdate({_id: studentID}, {$set: {Isapproved:toApprove, Remarks: remarks}},  { new: true })
-    
-    if(!theStudent){
-        throw new ApiError(400,"faild to approve or reject || student not found")
-    }
-
-    
+  
+    console.log("✅ Updated Student:", updatedStudent); // ✅ Debugging line
+  
     console.log("email", email);
 
     await Sendmail(email, `Document Verification Status`, 
         `<html>
             <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
             <h1 style="color: #4CAF50; text-align: center;">Document Verification Status!</h1>
-            <p style="font-size: 16px; text-align: center;">We have completed the verification process for the documents you submitted. Your document verification status is: ${toApprove}</p>
+            <p style="font-size: 16px; text-align: center;">We have completed the verification process for the documents you submitted. Your document verification status is: ${Isapproved}</p>
             <p style="font-size: 16px;">Remarks: ${remarks}</p>
             <p style="font-size: 16px;">Best regards,</p>
             <p style="font-size: 16px;"><strong>The Shiksharthee Team</strong></p>
@@ -207,11 +201,9 @@ const approveStudent = asyncHandler(async(req,res)=>{
         </html>`
     )
 
-    return res
-    .status(200)
-    .json(new ApiResponse(200, theStudent, `task done successfully`))
+    return res.status(200).json(new ApiResponse(200, updatedStudent, "Task done successfully"));
+});
 
-})
 
 const approveTeacher = asyncHandler(async(req,res)=>{
 
@@ -267,93 +259,87 @@ const approveTeacher = asyncHandler(async(req,res)=>{
 
 })
 
-const checkStudentDocuments = asyncHandler(async(req,res)=>{
-    const adminID = req.params.adminID
+const checkStudentDocuments = asyncHandler(async (req, res) => {
+    const adminID = req.params.adminID;
+    const studentID = req.params.studentID;
 
-    if(!adminID){
-        throw new ApiError(400, "not authorized")
-    }
-    
-    const loggedAdmin = await admin.findById(adminID)
-
-    if(!loggedAdmin){
-        throw new ApiError(400, "admin not found")
-    }
-    
-    const studentID = req.params.studentID
-
-    if(!studentID){
-        throw new ApiError(400, "no student ID")
+    if (!adminID) {
+        throw new ApiError(400, "not authorized");
     }
 
-    const theStudent = await student.findById(studentID)
-
-    if(!theStudent){
-        throw new ApiError(400, "student not found")
+    const loggedAdmin = await admin.findById(adminID);
+    if (!loggedAdmin) {
+        throw new ApiError(400, "admin not found");
     }
 
-    const docID = theStudent.Studentdetails
-
-    if(!docID){
-        throw new ApiError(400, "Documents not found, please update")
+    if (!studentID) {
+        throw new ApiError(400, "no student ID");
     }
 
-    const studentDocs = await studentdocs.findById(docID)
-    
-    if(!studentDocs){
-        throw new ApiError(400, "failed to retrieve documents")
-    }
-    
-    return res
-    .status(200)
-    .json(new ApiResponse(200, {loggedAdmin, theStudent, studentDocs}, "documents retrieved successfully"))
-
-
-})
-
-const checkTeacherDocuments = asyncHandler(async(req,res)=>{
-    const adminID = req.params.adminID
-
-    if(!adminID){
-        throw new ApiError(400, "not authorized")
+    const theStudent = await student.findById(studentID);
+    if (!theStudent) {
+        throw new ApiError(400, "student not found");
     }
 
-    const loggedAdmin = await admin.findById(adminID)
+    console.log("Student Found:", theStudent); // Debugging log
 
-    if(!loggedAdmin){
-        throw new ApiError(400, "admin not found")
+
+    const docID = theStudent.Studentdetails;
+    console.log("docID",docID);
+    if (!docID) {
+        console.error("Error: No Studentdetails found for student:", studentID);
+        throw new ApiError(400, "Documents not found, please update");
     }
 
-    const teacherID = req.params.teacherID
-
-    if(!teacherID){
-        throw new ApiError(400, "no Teacher ID")
+    const studentDocs = await studentdocs.findById(docID);
+    if (!studentDocs) {
+        console.error("Error: studentDocs not found for docID:", docID);
+        throw new ApiError(400, "failed to retrieve documents");
     }
 
-    const theTeacher = await Teacher.findById(teacherID)
+    return res.status(200).json(new ApiResponse(200, { loggedAdmin, theStudent, studentDocs }, "documents retrieved successfully"));
+});
 
-    if(!theTeacher){
-        throw new ApiError(400, "Teacher not found")
+
+const checkTeacherDocuments = asyncHandler(async (req, res) => {
+    const { adminID, teacherID } = req.params; // Extract adminID & teacherID from params
+
+    if (!adminID) {
+        throw new ApiError(400, "Not authorized - Missing Admin ID");
     }
 
-    const docID = theTeacher.Teacherdetails
-
-    if(!docID){
-        throw new ApiError(400, "Documents not found, please update")
+    // 🟢 Verify Admin Exists
+    const loggedAdmin = await admin.findById(adminID).lean();
+    if (!loggedAdmin) {
+        throw new ApiError(404, "Admin not found");
     }
 
-    const teacherDocs = await Teacherdocs.findById(docID)
-    
-    if(!teacherDocs){
-        throw new ApiError(400, "failed to retrieve documents")
+    if (!teacherID) {
+        throw new ApiError(400, "Teacher ID is required");
     }
 
-    return res
-    .status(200)
-    .json(new ApiResponse(200, {loggedAdmin, theTeacher, teacherDocs}, "documents retrieved successfully"))
+    // 🟢 Verify Teacher Exists
+    const theTeacher = await Teacher.findById(teacherID).lean();
+    if (!theTeacher) {
+        throw new ApiError(404, "Teacher not found");
+    }
 
+    const docID = theTeacher.Teacherdetails;
+    if (!docID) {
+        throw new ApiError(400, "Documents not found, please update");
+    }
 
-})
+    // 🟢 Fetch Teacher's Documents
+    const teacherDocs = await Teacherdocs.findById(docID).lean();
+    if (!teacherDocs) {
+        throw new ApiError(404, "Failed to retrieve documents");
+    }
+
+    return res.status(200).json(
+        new ApiResponse(200, { loggedAdmin, theTeacher, teacherDocs }, "Documents retrieved successfully")
+    );
+});
+
 
 
 const sendmessage = asyncHandler(async(req,res)=>{
