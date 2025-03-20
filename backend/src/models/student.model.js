@@ -92,19 +92,41 @@ studentSchema.methods.isPasswordCorrect = async function (Password){
 
 
 studentSchema.methods.generateAccessToken = function () {
-    return jwt.sign(
-        { id: this._id, Email: this.Email },
-        process.env.ACCESS_TOKEN_SECRET,
-        { expiresIn: "15m" }
-    );
+    try {
+        const payload = {
+            _id: this._id,
+            Email: this.Email,
+            role: "student"
+        };
+        console.log("Generating access token with payload:", payload);
+        return jwt.sign(
+            payload,
+            process.env.ACCESS_TOKEN_SECRET,
+            { expiresIn: process.env.ACCESS_TOKEN_EXPIRY }
+        );
+    } catch (error) {
+        console.error("Access Token Generation Error:", error);
+        throw new Error("Failed to generate access token");
+    }
 };
 
 studentSchema.methods.generateRefreshToken = function () {
-    return jwt.sign(
-        { id: this._id },
-        process.env.REFRESH_TOKEN_SECRET,
-        { expiresIn: "7d" }
-    );
+    try {
+        const payload = {
+            _id: this._id,
+            Email: this.Email,
+            role: "student"
+        };
+        console.log("Generating refresh token with payload:", payload);
+        return jwt.sign(
+            payload,
+            process.env.REFRESH_TOKEN_SECRET,
+            { expiresIn: process.env.REFRESH_TOKEN_EXPIRY }
+        );
+    } catch (error) {
+        console.error("Refresh Token Generation Error:", error);
+        throw new Error("Failed to generate refresh token");
+    }
 };
 
 

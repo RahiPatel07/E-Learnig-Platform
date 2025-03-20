@@ -15,7 +15,7 @@ const StudentDocument = () => {
   useEffect(() => {
     const getData = async () => {
       try {
-        const response = await fetch(`/api/student/StudentDocument/${Data}`, {
+        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/student/StudentDocument/${Data}`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -66,34 +66,85 @@ const StudentDocument = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoader(true);
-
+    console.log("Form Data:", formData);
+  
     const formDataObj = new FormData();
-
     Object.keys(formData).forEach((key) => {
+      //console.log(`Appending ${key}:`, formData[key]);
       formDataObj.append(key, formData[key]);
     });
 
+    console.log("formDataObj:", formDataObj);
+    // Debugging the FormData before sending
+    // for (let [key, value] of formDataObj.entries()) {
+    //   console.log("FormDataObj contains:", key, value);
+    // }
+  
     try {
-      const response = await fetch(`/api/student/verification/${Data}`, {
+      let response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/student/verification/${Data}`, {
         method: "POST",
         body: formDataObj,
+        credentials: "include",
       });
-
+  
       const responseData = await response.json();
-      console.log("response", responseData);
-
-      setLoader(false);
-      if (!response.ok) {
-        setError(responseData.message);
+  
+      // Handle JWT expiration
+      if (response.status === 401 && responseData.message === "jwt expired") {
+        console.log("JWT expired. Attempting to refresh token...");
+  
+        // Attempt to refresh token
+        const refreshResponse = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/refresh-token`, {
+          method: "POST",
+          credentials: "include",
+        });
+  
+        const refreshData = await refreshResponse.json();
+  
+        if (refreshResponse.ok) {
+          console.log("Token refreshed successfully.");
+          
+          // Retry the original request with the new token
+          response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/student/verification/${Data}`, {
+            method: "POST",
+            body: formDataObj,
+            credentials: "include",
+          });
+  
+          const newResponseData = await response.json();
+          console.log("New Response Data:", newResponseData);
+  
+          if (response.ok) {
+            // If the form submission is successful after refreshing the token
+            console.log("Form submitted successfully!");
+            navigate("/pending");
+          } else {
+            setError(newResponseData.message || "Something went wrong.");
+          }
+        } else {
+          console.log("Token refresh failed. Redirecting to login...");
+          setError("Session expired. Please log in again.");
+          setLoader(false);
+          navigate("/login");
+        }
+      } else if (!response.ok) {
+        setError(responseData.message || "Something went wrong.");
+        setLoader(false);
       } else {
+        // Successful submission
         console.log("Form submitted successfully!");
         navigate("/pending");
       }
     } catch (e) {
       console.error("Error:", e);
+      setLoader(false);
+      setError("Something went wrong. Please try again.");
     }
+  
   };
-
+  
+  
+  
   return (
     <>
       {loader && (
@@ -222,7 +273,7 @@ const StudentDocument = () => {
             </div>
           </div>
         </div>
-        {error && <p className="text-white text-xl m-5 text-center">!! {error}</p>}
+        {/* {error && <p className="text-white text-xl m-5 text-center">!! {error}</p>} */}
         <div className=" bg-[#0D286F] p-3 m-3 mt-1 rounded-md absolute right-32 bottom-5 cursor-pointer">
           <button className=" text-white text-sm" type="Submit">
             Submit ▶️

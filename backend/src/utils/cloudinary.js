@@ -1,30 +1,26 @@
-import {v2 as cloudinary} from 'cloudinary';
-import fs from "fs"
+import { v2 as cloudinary } from "cloudinary";
+import dotenv from "dotenv";
 
+dotenv.config();  // ✅ Ensure environment variables are loaded
 
-
-cloudinary.config({ 
-  cloud_name: process.env.CLOUDINARY_NAME,
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME, // ✅ Fix: Use process.env
   api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_SECRET_KEY 
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-
 const uploadOnCloudinary = async (localFilePath) => {
-    
-    try{
-        if(!localFilePath) return null;
-        const response = await cloudinary.uploader.upload(localFilePath, {
-            resource_type: "auto"
-        })
-        fs.unlinkSync(localFilePath)
-        return response;
-    } catch(err){
-        fs.unlinkSync(localFilePath)
-        console.log("cloudinary upload error ", err)
-        return null;
-    }
-}
+  if (!localFilePath) return null;
 
+  try {
+    const result = await cloudinary.uploader.upload(localFilePath, {
+      folder: "StudentDocs",
+    });
+    return result;
+  } catch (error) {
+    console.error("❌ Cloudinary Upload Error:", error);
+    throw error;
+  }
+};
 
-export {uploadOnCloudinary}
+export { uploadOnCloudinary };

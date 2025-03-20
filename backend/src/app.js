@@ -1,19 +1,24 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import dotenv from "dotenv";
 // import Razorpay from "razorpay"
+
+// Load environment variables
+dotenv.config();
 
 const app = express();
 
-app.listen(4400, () => {
-  console.log("Server is running on port 4400");
-});
-
+// CORS configuration
 app.use(cors({
-    origin: "http://localhost:5173", // ✅ Allow only frontend URL
-    credentials: true, // ✅ Allow cookies & authentication headers
-  }));
+    origin: "http://localhost:5173",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin", "Cookie"],
+    exposedHeaders: ["Set-Cookie"]
+}));
 
+// Middleware
 app.use(express.json({limit: "16kb"}))
 app.use(express.urlencoded({extended: true, limit: "16kb"}))
 app.use(express.static("public"))
@@ -44,5 +49,10 @@ app.use("/api/admin", adminRouter)
 // import paymentRouter from "./routes/payment.routes.js"
 // app.use("/api/payment", paymentRouter)
 
+// Start server
+const PORT = 4400;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
 
 export {app}

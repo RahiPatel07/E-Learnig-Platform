@@ -43,8 +43,7 @@ function VarifyDoc() {
                     return;
                 }
     
-                const response = await fetch(
-                    `${import.meta.env.VITE_BACKEND_URL}/api/admin/${adminID}/documents/${type}/${ID}`,
+                const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/admin/${adminID}/documents/${type}/${ID}`,
                     {
                         method: "GET",
                         headers: {
@@ -53,7 +52,7 @@ function VarifyDoc() {
                         },
                     }
                 );
-    
+                console.log("response:",respone);
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
                 }
