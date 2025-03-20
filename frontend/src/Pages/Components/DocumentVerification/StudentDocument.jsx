@@ -63,85 +63,85 @@ const StudentDocument = () => {
     });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoader(true);
-    console.log("Form Data:", formData);
-  
-    const formDataObj = new FormData();
-    Object.keys(formData).forEach((key) => {
-      //console.log(`Appending ${key}:`, formData[key]);
-      formDataObj.append(key, formData[key]);
-    });
-
-    console.log("formDataObj:", formDataObj);
-    // Debugging the FormData before sending
-    // for (let [key, value] of formDataObj.entries()) {
-    //   console.log("FormDataObj contains:", key, value);
-    // }
-  
-    try {
-      let response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/student/verification/${Data}`, {
-        method: "POST",
-        body: formDataObj,
-        credentials: "include",
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      setLoader(true);
+      console.log("Form Data:", formData);
+    
+      const formDataObj = new FormData();
+      Object.keys(formData).forEach((key) => {
+        //console.log(`Appending ${key}:`, formData[key]);
+        formDataObj.append(key, formData[key]);
       });
-  
-      const responseData = await response.json();
-  
-      // Handle JWT expiration
-      if (response.status === 401 && responseData.message === "jwt expired") {
-        console.log("JWT expired. Attempting to refresh token...");
-  
-        // Attempt to refresh token
-        const refreshResponse = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/refresh-token`, {
+
+      console.log("formDataObj:", formDataObj);
+      // Debugging the FormData before sending
+      // for (let [key, value] of formDataObj.entries()) {
+      //   console.log("FormDataObj contains:", key, value);
+      // }
+    
+      try {
+        let response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/student/verification/${Data}`, {
           method: "POST",
+          body: formDataObj,
           credentials: "include",
         });
-  
-        const refreshData = await refreshResponse.json();
-  
-        if (refreshResponse.ok) {
-          console.log("Token refreshed successfully.");
-          
-          // Retry the original request with the new token
-          response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/student/verification/${Data}`, {
+    
+        const responseData = await response.json();
+    
+        // Handle JWT expiration
+        if (response.status === 401 && responseData.message === "jwt expired") {
+          console.log("JWT expired. Attempting to refresh token...");
+    
+          // Attempt to refresh token
+          const refreshResponse = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/refresh-token`, {
             method: "POST",
-            body: formDataObj,
             credentials: "include",
           });
-  
-          const newResponseData = await response.json();
-          console.log("New Response Data:", newResponseData);
-  
-          if (response.ok) {
-            // If the form submission is successful after refreshing the token
-            console.log("Form submitted successfully!");
-            navigate("/pending");
+    
+          const refreshData = await refreshResponse.json();
+    
+          if (refreshResponse.ok) {
+            console.log("Token refreshed successfully.");
+            
+            // Retry the original request with the new token
+            response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/student/verification/${Data}`, {
+              method: "POST",
+              body: formDataObj,
+              credentials: "include",
+            });
+    
+            const newResponseData = await response.json();
+            console.log("New Response Data:", newResponseData);
+    
+            if (response.ok) {
+              // If the form submission is successful after refreshing the token
+              console.log("Form submitted successfully!");
+              navigate("/pending");
+            } else {
+              setError(newResponseData.message || "Something went wrong.");
+            }
           } else {
-            setError(newResponseData.message || "Something went wrong.");
+            console.log("Token refresh failed. Redirecting to login...");
+            setError("Session expired. Please log in again.");
+            setLoader(false);
+            navigate("/login");
           }
-        } else {
-          console.log("Token refresh failed. Redirecting to login...");
-          setError("Session expired. Please log in again.");
+        } else if (!response.ok) {
+          setError(responseData.message || "Something went wrong.");
           setLoader(false);
-          navigate("/login");
+        } else {
+          // Successful submission
+          console.log("Form submitted successfully!");
+          navigate("/pending");
         }
-      } else if (!response.ok) {
-        setError(responseData.message || "Something went wrong.");
+      } catch (e) {
+        console.error("Error:", e);
         setLoader(false);
-      } else {
-        // Successful submission
-        console.log("Form submitted successfully!");
-        navigate("/pending");
+        setError("Something went wrong. Please try again.");
       }
-    } catch (e) {
-      console.error("Error:", e);
-      setLoader(false);
-      setError("Something went wrong. Please try again.");
-    }
-  
-  };
+    
+    };
   
   
   

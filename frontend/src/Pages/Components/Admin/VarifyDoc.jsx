@@ -37,33 +37,33 @@ function VarifyDoc() {
       useEffect(() => {
         const getData = async () => {
             try {
-                const token = localStorage.getItem("token"); // Retrieve token
-                if (!token) {
-                    console.error("No token found. Please log in.");
-                    return;
-                }
-    
-                const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/admin/${adminID}/documents/${type}/${ID}`,
-                    {
-                        method: "GET",
-                        headers: {
-                            Authorization: `Bearer ${token}`, // ✅ Add token here
-                            "Content-Type": "application/json",
-                        },
-                    }
-                );
-                console.log("response:",respone);
+                const token = localStorage.getItem("Accesstoken"); // Assuming it's stored here
+                console.log("1");
+                console.log("token",token);
+
+                const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/admin/${adminID}/documents/student/${ID}`, {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`, // Ensure the token is included
+                    },
+                    credentials: "include",
+                });
+                console.log("r",response);
+        
                 if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
+                    const errorResponse = await response.json();
+                    console.error("API Error Response:", errorResponse);
+                    throw new Error(`HTTP error! Status: ${response.status} - ${errorResponse.message}`);
                 }
-    
+        
                 const data = await response.json();
-                setData(data.data);
-                console.log(data.data);
-            } catch (err) {
-                console.log(err.message);
+                console.log("Response:", data);
+            } catch (error) {
+                console.error("Error fetching data:", error.message);
             }
         };
+              
         getData();
     }, []);
     

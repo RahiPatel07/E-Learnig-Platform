@@ -32,24 +32,27 @@ export default function AdminLogin() {
         setErr(responesData.message);
 
         if (response.ok && responesData.data && responesData.data.admin) {
-          const userid = responesData.data.admin._id;
-          console.log("User ID:", userid);
-      
-          if (!userid) {
-              console.error("Error: User ID is undefined!");
-              return; // Prevent navigation if ID is missing
-          }
-      
-          localStorage.setItem("token", responesData.token); // ✅ Store token
-          console.log("Navigating to:", `/admin/${userid}`);
-      
-          navigate(`/admin/${userid}`);
-      }
+            const userid = responesData.data.admin._id;
+            console.log("User ID:", userid);
+
+            if (!userid) {
+                console.error("Error: User ID is undefined!");
+                return;
+            }
+
+            // ✅ Store token correctly
+            localStorage.setItem("Accesstoken", responesData.data.Accesstoken);
+            console.log("Token saved:", responesData.data.Accesstoken);
+
+            // ✅ Navigate after storing the token
+            navigate(`/admin/${userid}`);
+        }
       
     } catch (error) {
         console.error("Login error:", error);
     }
 };
+  
 
 
   return (
