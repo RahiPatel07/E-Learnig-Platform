@@ -11,28 +11,47 @@ function VarifyDoc() {
         setValue(event.target.value);
     };
 
-    const Approval = async(id, type, approve, email)=>{
+    const Approval = async (id, type, approve, email) => {
         try {
-          const data = {
-            Isapproved : approve,
-            remarks : value,
-            email: email,
+          const token = localStorage.getItem("Accesstoken"); // ✅ Ensure token is retrieved
+      
+          console.log("Token:", token); // ✅ Debugging: Check token value before request
+      
+          if (!token) {
+            console.log("❌ No Auth Token Found");
+            return;
           }
-    
-          const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/admin/${adminID}/approve/${type}/${id}`, {
-            method: 'POST',
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(data),
-          });
-        
+      
+          const data = {
+            Isapproved: approve,
+            remarks: value, // Ensure `value` is defined
+            email: email,
+          };
+      
+          const response = await fetch(
+            `${import.meta.env.VITE_BACKEND_URL}/api/admin/${adminID}/approve/${type}/${id}`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`, // ✅ Ensure token is sent
+              },
+              credentials: "include",
+              body: JSON.stringify(data),
+            }
+          );
+      
+          if (!response.ok) {
+            const errorResponse = await response.json();
+            throw new Error(`❌ Approval Error: ${errorResponse.message}`);
+          }
+      
           navigator(`/admin/${adminID}`);
-    
         } catch (error) {
           console.log(error.message);
         }
-      }
+      };
+      
 
       useEffect(() => {
         const getData = async () => {
@@ -41,7 +60,7 @@ function VarifyDoc() {
                 console.log("1");
                 console.log("token", token);
     
-                const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/admin/${adminID}/documents/student/${ID}`, {
+                const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/admin/${adminID}/documents/${type}/${ID}`, {
                     method: "GET",
                     headers: {
                         "Content-Type": "application/json",
@@ -174,7 +193,7 @@ function VarifyDoc() {
                                 Reupload !
                                 </div>
                             </div>
-                        </div>
+                        </div>  
                     </div>
                 </>
             )}

@@ -233,32 +233,39 @@
 
     const logout = asyncHandler(async (req, res) => {
         try {
+            console.log("🔍 Logout request received");
+            console.log("👤 User in request:", req.user ? "✅ Present" : "❌ Missing");
+    
             if (!req.user || !req.user._id) {
+                console.error("❌ Logout Error: No user found in request.");
                 throw new ApiError(401, "Unauthorized: No user found");
             }
-
-            await Student.findByIdAndUpdate(
-                req.user._id,  // 🔥 Fix: Use req.user._id instead of req.Student._id
-                { $unset: { Refreshtoken: "" } }, // 🔥 Fix: Correct way to remove a field in MongoDB
-                { new: true }
-            );
-
+    
+            // Remove refresh token from database
+            await student.findByIdAndUpdate(req.user._id, {
+                $unset: { Refreshtoken: "" }, // ✅ Proper way to remove field
+            });
+    
+            console.log("✅ Refresh token removed from database");
+    
             const options = {
                 httpOnly: true,
                 secure: true,
                 sameSite: "None",
             };
-
+    
             return res
                 .status(200)
-                .clearCookie("Accesstoken", options) // 🔥 Fix: Ensure these match how the cookie was originally set
+                .clearCookie("Accesstoken", options)
                 .clearCookie("Refreshtoken", options)
-                .json(new ApiResponse(200, {}, "User logged out"));
+                .json(new ApiResponse(200, {}, "User logged out successfully"));
+    
         } catch (error) {
-            console.error("Logout Error:", error);
+            console.error("❌ Logout Error:", error);
             throw new ApiError(500, "Something went wrong during logout");
         }
     });
+    
 
 
     const getStudent = asyncHandler(async(req,res)=>{
@@ -271,93 +278,97 @@
         .status(200)
         .json(new ApiResponse(200, user, "Student is logged in"))
     })
-    const addStudentDetails = asyncHandler(async (req, res) => {
-        console.log("Uploaded Files:", req.files); // Log uploaded files to verify if files are received
-        
-        try {
-            const id = req.params.id;
-            console.log("Received Student ID:", id);
-            console.log("Request Body:", req.body);
-            console.log("Uploaded Files:", req.files);
-    
-            if (req.Student._id.toString() !== id) {
-                throw new ApiError(400, "Unauthorized access");
-            }
-    
-            const { Phone, Address, Highesteducation, SecondarySchool, HigherSchool, SecondaryMarks, HigherMarks } = req.body;
-    
-            if ([Phone, Address, Highesteducation, SecondarySchool, HigherSchool, SecondaryMarks, HigherMarks].some((field) => !field?.trim())) {
-                throw new ApiError(400, "All fields are required");
-            }
-    
-            const alreadyExist = await studentdocs.findOne({ Phone });
-    
-            if (alreadyExist) {
-                throw new ApiError(400, "Phone number already exists");
-            }
-    
-            // ✅ Check if files exist before accessing them
-            const AadhaarLocalPath = req.files?.Aadhaar?.[0]?.path || null;
-            const SecondaryLocalPath = req.files?.Secondary?.[0]?.path || null;
-            const HigherLocalPath = req.files?.Higher?.[0]?.path || null;
-    
-            if (!AadhaarLocalPath || !SecondaryLocalPath || !HigherLocalPath) {
-                throw new ApiError(400, "All required documents (Aadhaar, Secondary, Higher) must be uploaded.");
-            }
-    
-            // ✅ Try uploading files to Cloudinary with error handling
-            let Aadhaar, Secondary, Higher;
-            console.log("Cloudinary Config:", process.env.CLOUDINARY_CLOUD_NAME);
+   const addStudentDetails = asyncHandler(async (req, res) => {
+  console.log("Uploaded Files:", req.files);
 
-            try {
-                Aadhaar = await uploadOnCloudinary(AadhaarLocalPath);
-                Secondary = await uploadOnCloudinary(SecondaryLocalPath);
-                Higher = await uploadOnCloudinary(HigherLocalPath);
-            } catch (uploadError) {
-                console.error("❌ Cloudinary Upload Error:", uploadError);
-                throw new ApiError(500, "Error uploading files to Cloudinary");
-            }
-    
-            // ✅ Save student details
-            const studentdetails = await studentdocs.create({
-                Phone,
-                Address,
-                Highesteducation,
-                SecondarySchool,
-                HigherSchool,
-                SecondaryMarks,
-                HigherMarks,
-                Aadhaar: Aadhaar.url,
-                Secondary: Secondary.url,
-                Higher: Higher.url,
-            });
-    
-            console.log("✅ Student details saved:", studentdetails);
-    
-            // ✅ Update student with new document details
-            const updatedStudent = await student.findOneAndUpdate(
-                { _id: id },
-                { $set: { Isapproved: "pending", Studentdetails: studentdetails._id } },
-                { new: true }
-            ).select("-Password -Refreshtoken");
-    
-            if (!updatedStudent) {
-                throw new ApiError(400, "Failed to update student with document details");
-            }
-    
-            console.log("✅ Updated Student:", updatedStudent);
-    
-            return res.status(200).json(new ApiResponse(200, updatedStudent, "Documents uploaded successfully"));
-        } catch (error) {
-            console.error("❌ Error in addStudentDetails:", error);
-            throw new ApiError(error.statusCode || 500, error.message || "Internal Server Error");
-        }
+  try {
+    const id = req.params.id;
+    console.log("Received Student ID:", id);
+    console.log("Request Body:", req.body);
+
+    if (req.Student._id.toString() !== id) {
+      throw new ApiError(400, "Unauthorized access");
+    }
+
+    const { Phone, Address, Highesteducation, SecondarySchool, HigherSchool, SecondaryMarks, HigherMarks } = req.body;
+
+    if ([Phone, Address, Highesteducation, SecondarySchool, HigherSchool, SecondaryMarks, HigherMarks].some((field) => !field?.trim())) {
+      throw new ApiError(400, "All fields are required");
+    }
+
+    const alreadyExist = await studentdocs.findOne({ Phone });
+    if (alreadyExist) {
+      throw new ApiError(400, "Phone number already exists");
+    }
+
+    const AadhaarLocalPath = req.files?.Aadhaar?.[0]?.path || null;
+    const SecondaryLocalPath = req.files?.Secondary?.[0]?.path || null;
+    const HigherLocalPath = req.files?.Higher?.[0]?.path || null;
+
+    if (!AadhaarLocalPath || !SecondaryLocalPath || !HigherLocalPath) {
+      throw new ApiError(400, "All required documents (Aadhaar, Secondary, Higher) must be uploaded.");
+    }
+
+    let Aadhaar, Secondary, Higher;
+    try {
+      Aadhaar = await uploadOnCloudinary(AadhaarLocalPath);
+      Secondary = await uploadOnCloudinary(SecondaryLocalPath);
+      Higher = await uploadOnCloudinary(HigherLocalPath);
+    } catch (uploadError) {
+      console.error("❌ Cloudinary Upload Error:", uploadError);
+      throw new ApiError(500, "Error uploading files to Cloudinary");
+    }
+
+    // ✅ Create studentdocs
+    const studentdetails = await studentdocs.create({
+      Phone,
+      Address,
+      Highesteducation,
+      SecondarySchool,
+      HigherSchool,
+      SecondaryMarks,
+      HigherMarks,
+      Aadhaar: Aadhaar.url,
+      Secondary: Secondary.url,
+      Higher: Higher.url,
     });
-    
-    
 
+    if (!studentdetails || !studentdetails._id) {
+      throw new ApiError(500, "Failed to save student details");
+    }
 
+    console.log("✅ Student details saved:", studentdetails);
 
+    // ✅ Find Student Before Updating
+    const studentExists = await student.findById(id);
+    if (!studentExists) {
+      throw new ApiError(404, "Student not found");
+    }
+    console.log("🟢 Found Student:", studentExists);
+
+    // ✅ Update student
+    const updatedStudent = await student.findOneAndUpdate(
+      { _id: id },
+      { $set: { Isapproved: "pending", Studentdetails: studentdetails._id } },
+      { new: true }
+    ).select("-Password -Refreshtoken");
+
+    if (!updatedStudent) {
+      throw new ApiError(500, "Failed to update student with document details");
+    }
+
+    console.log("✅ Updated Student:", updatedStudent);
+
+    // ✅ Verify that Studentdetails is populated
+    const checkStudent = await student.findById(id).populate("Studentdetails");
+    console.log("🔍 After Update - Studentdetails:", checkStudent.Studentdetails);
+
+    return res.status(200).json(new ApiResponse(200, updatedStudent, "Documents uploaded successfully"));
+  } catch (error) {
+    console.error("❌ Error in addStudentDetails:", error);
+    throw new ApiError(error.statusCode || 500, error.message || "Internal Server Error");
+  }
+});
 
     const forgetPassword=asyncHandler(async(req,res)=>{
 
