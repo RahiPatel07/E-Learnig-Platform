@@ -4,6 +4,9 @@ import fs from 'fs';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  build: {
+    outDir: 'dist'  // Firebase Hosting will serve this
+  },
   server: {
     https: {
       key: fs.readFileSync('./certificates/server.key'),
